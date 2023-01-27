@@ -1,6 +1,7 @@
 package com.alibou.security.auth;
 
 import com.alibou.security.config.JwtService;
+import org.springframework.mail.SimpleMailMessage;
 import com.alibou.security.user.Role;
 import com.alibou.security.user.User;
 import com.alibou.security.user.UserRepository;
@@ -10,6 +11,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class AuthenticationService {
@@ -17,6 +21,7 @@ public class AuthenticationService {
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
   private final AuthenticationManager authenticationManager;
+  private final EmailService emailService;
 
   public AuthenticationResponse register(RegisterRequest request) {
     var user = User.builder()
@@ -46,5 +51,35 @@ public class AuthenticationService {
     return AuthenticationResponse.builder()
         .token(jwtToken)
         .build();
+  }
+
+    public String forgot (ForgorPasswordRequest request) {
+      var user = repository.findByEmail(request.getEmail())
+              .orElseThrow();
+      user.setResetToken(UUID.randomUUID().toString());
+      repository.save(user);
+
+      String resetUrl = "http://localhost:8080";
+
+      SimpleMailMessage passwordEmailReset = new SimpleMailMessage();
+      passwordEmailReset.setFrom("admin@demo.com");
+      passwordEmailReset.setTo(user.getEmail());
+      passwordEmailReset.setSubject("Password Email Request!");
+      passwordEmailReset.setText("To reset your password, click the link below:\n" + resetUrl + "/api/v1/auth/reset?token=" + user.getResetToken());
+
+      emailService.sendEmail(passwordEmailReset);
+
+      return "Email enviado com sucesso para " + user.getEmail();
+    }
+
+  public String reset(ResetPasswordRequest request, String token) {
+    var user = repository.findByResetToken(token)
+            .orElseThrow();
+
+    user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+    user.setResetToken(null);
+    repository.save(user);
+
+    return "Your password was updated succesfully!";
   }
 }
