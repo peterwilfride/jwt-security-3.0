@@ -6,7 +6,9 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,6 +34,7 @@ public class User implements UserDetails {
   private String email;
   private String password;
   private String resetToken;
+  private Date resetTokenExpireDate;
 
   @Enumerated(EnumType.STRING)
   private Role role;

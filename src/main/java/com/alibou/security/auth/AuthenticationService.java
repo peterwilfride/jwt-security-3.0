@@ -11,6 +11,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -57,6 +58,7 @@ public class AuthenticationService {
       var user = repository.findByEmail(request.getEmail())
               .orElseThrow();
       user.setResetToken(UUID.randomUUID().toString());
+      user.setResetTokenExpireDate(new Date(System.currentTimeMillis() + 1000 * 60)); // 1 mim
       repository.save(user);
 
       String resetUrl = "http://localhost:8080";
@@ -76,10 +78,20 @@ public class AuthenticationService {
     var user = repository.findByResetToken(token)
             .orElseThrow();
 
-    user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-    user.setResetToken(null);
-    repository.save(user);
+    Date expireDate = user.getResetTokenExpireDate();
+    Date now = new Date(System.currentTimeMillis());
 
-    return "Your password was updated succesfully!";
+    if (now.before(expireDate)) {
+      user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+      user.setResetToken(null);
+      user.setResetTokenExpireDate(null);
+      repository.save(user);
+      return "Your password was updated succesfully!";
+    } else {
+      user.setResetToken(null);
+      user.setResetTokenExpireDate(null);
+      repository.save(user);
+      return "The link has expired!";
+    }
   }
 }
